@@ -29,6 +29,38 @@ inline void assert_bounding_box(const Collection<T> &collection, const unsigned 
   CHECK(bmax[2] == Approx(true_max[2]));
 }
 
+/**
+    If multiple IDs (more objects) are used, all are checked and a global minimum and maximum are searched for
+    @param num_prim_id : Number of prim_ids in object
+*/
+template<typename T, template<typename> typename Collection>
+inline void assert_bounding_box_collection(const Collection<T> &collection, const Vec3r<T> &true_min,
+                                           const Vec3r<T> &true_max) {
+
+  const auto num_prim_id = collection.centers.size();
+  const auto limit_max = std::numeric_limits<T>::max();
+  const auto limit_min = std::numeric_limits<T>::min();
+
+  Vec3r<T> bmin{limit_max, limit_max, limit_max};
+  Vec3r<T> bmax{limit_min, limit_min, limit_min};
+
+  for (unsigned int i = 0; i < num_prim_id; i++) {
+    const auto [bmin_temp, bmax_temp] = collection.get_primitive_bounding_box(i);
+
+    for (unsigned int k = 0; k < 3; k++) {
+      bmin[k] = std::min(bmin[k], bmin_temp[k]);
+      bmax[k] = std::max(bmax[k], bmax_temp[k]);
+    }
+  }
+
+  CHECK(bmin[0] == Approx(true_min[0]));
+  CHECK(bmin[1] == Approx(true_min[1]));
+  CHECK(bmin[2] == Approx(true_min[2]));
+  CHECK(bmax[0] == Approx(true_max[0]));
+  CHECK(bmax[1] == Approx(true_max[1]));
+  CHECK(bmax[2] == Approx(true_max[2]));
+}
+
 template<typename T, template<typename> typename Collection>
 inline void assert_primitive_center(const Collection<T> &collection, const unsigned int prim_id,
                                     const Vec3r<T> &true_center) {
@@ -62,6 +94,65 @@ inline void assert_intersect_primitive_hit(const Collection<T> &collection, cons
   CHECK(rayhit.normal[0] == Approx(static_cast<T>(normal[0])));
   CHECK(rayhit.normal[1] == Approx(static_cast<T>(normal[1])));
   CHECK(rayhit.normal[2] == Approx(static_cast<T>(normal[2])));
+}
+
+/**
+  * Used for trimesh, if more than one triangle is used
+  */
+template<typename T, template<typename> typename Collection>
+inline void assert_traverse_bvh_hit_collection(const Collection<T> &collection, const Ray<T> &ray, const bool true_hit,
+                                               const T distance, const Vec3r<T> &normal) {
+
+  BVH bvh(collection);
+  SAHBinnedBuilder builder;
+
+  [[maybe_unused]] auto statistics = builder.build(bvh);
+
+  RayHit<T> rayhit;
+  const bool hit = traverse(bvh, ray, rayhit);
+  CHECK(hit == true_hit);
+  CHECK(rayhit.hit_distance == Approx(static_cast<T>(distance)));
+  CHECK(rayhit.normal[0] == Approx(static_cast<T>(normal[0])));
+  CHECK(rayhit.normal[1] == Approx(static_cast<T>(normal[1])));
+  CHECK(rayhit.normal[2] == Approx(static_cast<T>(normal[2])));
+}
+
+/**
+ * Temporary used for Cube mesh, for hit check and right distance to surface
+ * TODO: Find out how to correctly check normals of cube mesh
+ */
+template<typename T, template<typename> typename Collection>
+inline void assert_traverse_bvh_hit_trimesh_distance(const Collection<T> &collection, const Ray<T> &ray,
+                                                     const bool true_hit, const T distance) {
+
+  BVH bvh(collection);
+  SAHBinnedBuilder builder;
+
+  [[maybe_unused]] auto statistics = builder.build(bvh);
+
+  RayHit<T> rayhit;
+  const bool hit = traverse(bvh, ray, rayhit);
+  CHECK(hit == true_hit);
+  CHECK(rayhit.hit_distance == Approx(static_cast<T>(distance)));
+}
+
+template<typename T, template<typename> typename Collection>
+inline void assert_traverse_bvh_hit_trimesh_precision(const Collection<T> &collection, const Ray<T> &ray,
+                                                      const bool true_hit, const T epsilon, const T run_var) {
+
+  BVH bvh(collection);
+  SAHBinnedBuilder builder;
+
+  [[maybe_unused]] auto statistics = builder.build(bvh);
+
+  RayHit<T> rayhit;
+  const bool hit = traverse(bvh, ray, rayhit);
+  INFO("  This is only a WARN_MESSAGE and no fail of the test.\n"
+       "   -> Origin: ~\\blazert\\test\\test_primitives\\assert_helper.h \n"
+       "   -> Name: assert_traverse_bvh_hit_trimesh_precision(...)\n");
+
+  WARN_MESSAGE(hit == true_hit,
+               "The precision is greater than or equal " << run_var << "*epsilon. (epsilon = " << epsilon << ")");
 }
 
 template<typename T, template<typename> typename Collection>
