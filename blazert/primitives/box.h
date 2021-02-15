@@ -45,7 +45,7 @@ public:
   Box(const Vec3r<T> &center, const T dx, const T dy, const T dz, const Mat3r<T> &rotation, const unsigned int prim_id)
       : center(center), dx(dx), dy(dy), dz(dz), rotation(rotation), prim_id(prim_id) {
 
-    /** 1. erzeugen der std::vectors wie in plane tests */
+    /** 1. erzeugen der std::vector wie in plane tests */
     auto centers = std::make_unique<Vec3rList<T>>();
     auto dxx = std::make_unique<std::vector<T>>();
     auto dyy = std::make_unique<std::vector<T>>();
@@ -106,10 +106,8 @@ public:
     dyy->emplace_back(dz);
     rotations->emplace_back(rotation_y_plane);
 
-    /**
-      3. BoxPlanes = PlaneCollection<T>(<vector>);
-      PlaneCollection<T> planes(*centers, *dxx, *dyy, *rotations);
-      */
+    /** 3. BoxPlanes = PlaneCollection<T>(<vector>);
+            PlaneCollection<T> planes(*centers, *dxx, *dyy, *rotations); */
     BoxPlanes(*centers, *dxx, *dyy, *rotations);
     /**
      4. intersections
@@ -117,6 +115,14 @@ public:
         -> prepare_traversal und post_traversal
         -> siehe assert_intersect_primitive_hit in assert_helper.h
       */
+    // TODO: Evtl. in den BoxIntersector?
+    typename Collection<T>::intersector intersector(BoxPlanes);
+    RayHit<T> rayhit;
+    const bool hit = intersect_primitive(intersector, primitive_from_collection(BoxPlanes, 0), ray);
+    if (hit)
+      post_traversal(intersector, rayhit);
+
+
   };
   Box(Box &&rhs) noexcept
       : center(std::move(rhs.center)), dx(std::move(rhs.dx)), dy(std::move(rhs.dy)), dz(std::move(rhs.dz)),
